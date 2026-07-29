@@ -1,0 +1,25 @@
+# Blueprint do Render — cria o serviço web + banco PostgreSQL gratuito de uma vez.
+# No Render: New > Blueprint > aponte para este repositório.
+services:
+  - type: web
+    name: pesquisa-clima
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      # Token para proteger o dashboard. O Render gera um valor aleatório.
+      # Veja o valor em: painel do serviço > Environment.
+      - key: ADMIN_TOKEN
+        generateValue: true
+      # Conecta automaticamente ao banco criado abaixo (dados não se perdem).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pesquisa-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+databases:
+  - name: pesquisa-db
+    plan: free

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Banco de dados local (não subir dados de teste)
+responses.db
+*.sqlite3
+
+# Variáveis de ambiente
+.env
+
+# Sistema
+.DS_Store
+Thumbs.db

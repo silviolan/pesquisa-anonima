@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Clima — Resultados</title>
+<style>
+  :root{
+    --navy-dark:#0F1E3C;
+    --navy:#1F3864;
+    --navy-soft:#2C3E5E;
+    --gold:#C9A24B;
+    --gold-light:#E7CE8C;
+    --bg:#F4F6FB;
+    --card:#FFFFFF;
+    --text-dark:#1A2333;
+    --text-mute:#6B7686;
+    --green:#1E8E5A;
+    --amber:#B6862F;
+    --red:#C0392B;
+    --line:#E4E8F0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text-dark);
+    font-family:'Segoe UI', Calibri, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hero{
+    background:linear-gradient(160deg, var(--navy-dark), var(--navy));
+    color:#fff; padding:34px 20px 30px;
+  }
+  .hero-inner{max-width:1080px; margin:0 auto; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;}
+  .eyebrow{font-size:12px; letter-spacing:2px; color:var(--gold-light); text-transform:uppercase; margin:0 0 8px;}
+  h1{font-family:Georgia,'Times New Roman',serif; font-weight:700; font-size:26px; line-height:1.2; margin:0;}
+  .live{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#B9C4DC;}
+  .live-dot{width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 0 rgba(30,142,90,.6); animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(30,142,90,.5);}70%{box-shadow:0 0 0 8px rgba(30,142,90,0);}100%{box-shadow:0 0 0 0 rgba(30,142,90,0);}}
+
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 70px;}
+
+  /* KPIs */
+  .kpi-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-top:-26px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:0 12px 28px rgba(15,30,60,.08);}
+  .kpi .label{font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--text-mute); margin-bottom:8px;}
+  .kpi .value{font-family:Georgia,serif; font-size:34px; font-weight:700; color:var(--navy); line-height:1;}
+  .kpi .value small{font-size:15px; color:var(--text-mute); font-family:'Segoe UI',sans-serif; font-weight:400;}
+
+  .section-title{font-family:Georgia,serif; font-size:20px; color:var(--navy); margin:38px 0 4px;}
+  .section-sub{font-size:13px; color:var(--text-mute); margin:0 0 18px;}
+
+  /* Category cards */
+  .blocks{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:18px;}
+  .block{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px 22px 18px; box-shadow:0 8px 20px rgba(15,30,60,.06);}
+  .block-head{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;}
+  .block-head h3{font-family:Georgia,serif; font-size:17px; color:var(--navy); margin:0;}
+  .badge{font-size:22px; font-weight:700; font-family:Georgia,serif; padding:2px 12px; border-radius:9px; color:#fff; min-width:56px; text-align:center;}
+
+  .q-row{margin-bottom:15px;}
+  .q-row:last-child{margin-bottom:2px;}
+  .q-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+  .q-label{font-size:13px; color:var(--text-dark); line-height:1.4; flex:1;}
+  .q-num{font-size:14px; font-weight:700; white-space:nowrap;}
+  .q-count{font-size:11px; color:var(--text-mute); font-weight:400;}
+  .meter{height:7px; border-radius:4px; background:var(--line); margin-top:6px; overflow:hidden;}
+  .meter-fill{height:100%; border-radius:4px; transition:width .5s ease;}
+
+  .dist{display:flex; align-items:flex-end; gap:2px; height:26px; margin-top:8px;}
+  .dist span{flex:1; background:var(--line); border-radius:2px 2px 0 0; min-height:2px; position:relative;}
+  .dist span.has{background:var(--navy-soft);}
+  .dist-legend{display:flex; justify-content:space-between; font-size:9.5px; color:var(--text-mute); margin-top:3px;}
+
+  .toggle{margin-top:14px; background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:12.5px; color:var(--navy); cursor:pointer; width:100%; font-weight:600;}
+  .toggle:hover{border-color:var(--gold);}
+  .toggle:disabled{opacity:.45; cursor:default;}
+  .open-list{margin-top:12px; display:none;}
+  .open-list.show{display:block;}
+  .quote{background:var(--bg); border-left:3px solid var(--gold); border-radius:0 8px 8px 0; padding:10px 14px; font-size:13px; color:var(--text-dark); line-height:1.5; margin-bottom:8px; white-space:pre-wrap; word-break:break-word;}
+
+  /* Open questions (general) */
+  .gblock{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:0 8px 20px rgba(15,30,60,.06); margin-bottom:16px;}
+  .gblock h4{font-size:14.5px; color:var(--navy); margin:0 0 4px; line-height:1.4;}
+  .gblock .cnt{font-size:12px; color:var(--text-mute); margin-bottom:12px;}
+
+  .empty{background:var(--card); border:1px dashed var(--line); border-radius:14px; padding:48px 20px; text-align:center; color:var(--text-mute); margin-top:22px;}
+  .empty h3{font-family:Georgia,serif; color:var(--navy); margin:0 0 6px;}
+
+  .footnote{font-size:12px; color:var(--text-mute); margin-top:34px; text-align:center; line-height:1.6;}
+
+  /* Token gate */
+  .gate{max-width:420px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px 28px; box-shadow:0 12px 28px rgba(15,30,60,.10); text-align:center;}
+  .gate h2{font-family:Georgia,serif; color:var(--navy); margin:0 0 8px;}
+  .gate p{font-size:13.5px; color:var(--text-mute); margin:0 0 20px; line-height:1.5;}
+  .gate input{width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:9px; font-size:14px; margin-bottom:14px; font-family:inherit;}
+  .gate input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .gate button{width:100%; background:var(--navy); color:#fff; border:none; border-radius:9px; padding:12px; font-size:14.5px; font-weight:600; cursor:pointer;}
+  .gate .err{color:var(--red); font-size:12.5px; margin-bottom:12px; min-height:16px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">Painel do gestor</div>
+      <h1>Resultados — Pesquisa de Clima</h1>
+    </div>
+    <div class="live">
+      <span class="live-dot"></span>
+      <span id="live-text">Conectando…</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="content">
+  <!-- preenchido via JavaScript -->
+</div>
+
+<script>
+(function(){
+  // ==========================================================================
+  // CONFIGURAÇÃO — mesma regra do arquivo da pesquisa.
+  // Deixe vazio se o back-end servir este arquivo. Se hospedar separado,
+  // coloque a URL do Render, ex.: "https://pesquisa-clima.onrender.com".
+  // ==========================================================================
+  const API_BASE = "";
+  const REFRESH_MS = 15000; // atualiza a cada 15s
+
+  // Estrutura da pesquisa (apenas os rótulos, para exibir bonito).
+  const CATEGORIES = [
+    { key:"lideranca", title:"Liderança e confiança", questions:[
+      { id:"lideranca", text:"Confio na liderança da área para nos guiar na direção certa." },
+      { id:"competencia_lider", text:"Meu líder direto é tecnicamente e gerencialmente competente." },
+      { id:"comunicacao_lider", text:"Meu líder se comunica de forma clara e com a frequência necessária." },
+      { id:"confianca", text:"Eu confio no meu líder direto." },
+      { id:"qualidade_relacionamento", text:"Tenho um bom relacionamento com meu líder direto." },
+      { id:"justica", text:"Sinto que sou tratado(a) de forma justa em comparação aos colegas." },
+    ]},
+    { key:"empresa_carreira", title:"Empresa e carreira", questions:[
+      { id:"alinhamento_empresa", text:"Entendo e estou alinhado(a) com os objetivos e valores da empresa/área." },
+      { id:"carreira", text:"Enxergo perspectivas claras de crescimento de carreira aqui." },
+      { id:"desenvolvimento_profissional", text:"Tenho tido oportunidades reais de desenvolver competências profissionais." },
+      { id:"autonomia", text:"Tenho autonomia para tomar decisões no meu trabalho." },
+      { id:"oportunidades_desenvolvimento", text:"A área oferece oportunidades concretas de capacitação e crescimento." },
+      { id:"embaixadorismo", text:"Eu recomendaria esta área/empresa como um ótimo lugar para trabalhar." },
+    ]},
+    { key:"feedback", title:"Feedback e reconhecimento", questions:[
+      { id:"feedback_reconhecimento", text:"De forma geral, recebo feedback e reconhecimento adequados." },
+      { id:"autopercepcao", text:"Tenho clareza sobre como meu trabalho é percebido." },
+      { id:"frequencia_feedback", text:"Recebo feedback com a frequência que preciso." },
+      { id:"frequencia_reconhecimento", text:"Sou reconhecido(a) com a frequência que mereço." },
+      { id:"qualidade_feedback", text:"O feedback que recebo é claro, específico e útil." },
+      { id:"qualidade_reconhecimento", text:"O reconhecimento que recebo é genuíno e relevante." },
+    ]},
+    { key:"bem_estar", title:"Bem-estar e ambiente", questions:[
+      { id:"bem_estar", text:"Eu me sinto bem, física e emocionalmente, no dia a dia de trabalho." },
+      { id:"felicidade", text:"De forma geral, sou feliz trabalhando nesta área." },
+      { id:"inovacao", text:"Sinto que tenho espaço para propor e testar novas ideias." },
+      { id:"estrutura", text:"Tenho a estrutura (ferramentas, recursos, processos) necessária." },
+      { id:"suporte_estrutural", text:"Recebo o suporte estrutural e de recursos da empresa/área." },
+      { id:"relacionamento_interpessoal", text:"Tenho bons relacionamentos com meus colegas de equipe." },
+    ]},
+  ];
+  const CATEGORY_OPEN = {
+    lideranca:"Situação concreta de (des)confiança no líder direto",
+    empresa_carreira:"O que precisaria acontecer para ver crescimento em 12 meses",
+    feedback:"Última vez que recebeu feedback/reconhecimento — foi genuíno?",
+    bem_estar:"Momento em que se sentiu mais (ou menos) bem na área",
+  };
+  const GENERAL_QUESTIONS = [
+    { id:"gq_mudar", text:"Se pudesse mudar uma coisa na área amanhã, sem medo de consequências, o que seria?" },
+    { id:"gq_momento", text:"Momento do semestre em que mais pensou “isso não devia ser assim” — exemplo concreto." },
+    { id:"gq_corresponsabilidade", text:"O que você poderia fazer diferente para ajudar a melhorar isso?" },
+    { id:"gq_altagestao_comunicacao", text:"As decisões da Alta Gestão chegam de forma clara, ou mais por “ouvir dizer”?" },
+    { id:"gq_altagestao_ressentimento", text:"Alguma decisão/ação da Alta Gestão que ainda incomoda ou gerou ressentimento?" },
+  ];
+
+  const content = document.getElementById("content");
+  const liveText = document.getElementById("live-text");
+
+  let token = new URLSearchParams(location.search).get("token") || "";
+  let timer = null;
+  let gated = false;
+
+  // Escapa texto do usuário para evitar injeção de HTML/script no painel.
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, c => (
+      {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+    ));
+  }
+
+  function scoreColor(v){
+    if (v === null || v === undefined) return "var(--text-mute)";
+    if (v >= 7) return "var(--green)";
+    if (v >= 5) return "var(--amber)";
+    return "var(--red)";
+  }
+
+  function fmt(v){ return (v === null || v === undefined) ? "—" : v.toFixed(1); }
+
+  // Média ponderada pelo nº de respostas de um conjunto de perguntas.
+  function weightedAvg(ids, pq){
+    let sum = 0, n = 0;
+    ids.forEach(id => {
+      const q = pq[id];
+      if (q && q.avg !== null && q.count){ sum += q.avg * q.count; n += q.count; }
+    });
+    return n ? (sum / n) : null;
+  }
+
+  function distBars(dist){
+    const max = Math.max(1, ...dist);
+    let bars = "";
+    for (let i = 0; i <= 10; i++){
+      const h = Math.round((dist[i] / max) * 100);
+      bars += `<span class="${dist[i] > 0 ? "has" : ""}" style="height:${Math.max(h,4)}%" title="Nota ${i}: ${dist[i]} resposta(s)"></span>`;
+    }
+    return `<div class="dist">${bars}</div><div class="dist-legend"><span>0</span><span>5</span><span>10</span></div>`;
+  }
+
+  function renderTokenGate(errMsg){
+    stopRefresh();
+    gated = true;
+    liveText.textContent = "Acesso restrito";
+    content.innerHTML = `
+      <div class="gate">
+        <h2>Acesso restrito</h2>
+        <p>Este painel é apenas para a gestão. Informe o token de acesso.</p>
+        <div class="err">${errMsg ? esc(errMsg) : ""}</div>
+        <input id="tk" type="password" placeholder="Token de acesso" autocomplete="off">
+        <button id="tk-go">Entrar</button>
+      </div>`;
+    const input = document.getElementById("tk");
+    const go = () => {
+      token = input.value.trim();
+      const url = new URL(location.href);
+      if (token) url.searchParams.set("token", token); else url.searchParams.delete("token");
+      history.replaceState(null, "", url);
+      gated = false;
+      load(true);
+    };
+    document.getElementById("tk-go").addEventListener("click", go);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    input.focus();
+  }
+
+  function renderEmpty(){
+    content.innerHTML = `
+      <div class="empty">
+        <h3>Aguardando respostas…</h3>
+        <p>Assim que a primeira resposta anônima chegar, os números aparecem aqui automaticamente.</p>
+      </div>`;
+  }
+
+  function render(data){
+    const pq = data.perQuestion || {};
+
+    if (!data.count){
+      renderEmpty();
+      return;
+    }
+
+    // ---- Média geral (todas as perguntas) ----
+    const allIds = [];
+    CATEGORIES.forEach(c => c.questions.forEach(q => allIds.push(q.id)));
+    const overall = weightedAvg(allIds, pq);
+
+    // ---- KPIs ----
+    let html = `
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">Respostas</div><div class="value">${data.count}</div></div>
+        <div class="kpi"><div class="label">Média geral</div><div class="value" style="color:${scoreColor(overall)}">${fmt(overall)}<small> / 10</small></div></div>
+        <div class="kpi"><div class="label">Blocos avaliados</div><div class="value">${CATEGORIES.length}<small> temas</small></div></div>
+        <div class="kpi"><div class="label">Comentários livres</div><div class="value">${(data.comments||[]).length}</div></div>
+      </div>`;
+
+    // ---- Blocos por categoria ----
+    html += `<h2 class="section-title">Notas por bloco</h2>
+             <p class="section-sub">Média de 0 a 10. Verde ≥ 7 · Amarelo 5–7 · Vermelho &lt; 5. As barras finas mostram a distribuição das notas.</p>
+             <div class="blocks">`;
+
+    CATEGORIES.forEach(cat => {
+      const ids = cat.questions.map(q => q.id);
+      const catAvg = weightedAvg(ids, pq);
+      const openArr = (data.open && data.open[cat.key]) ? data.open[cat.key] : [];
+
+      let qHtml = "";
+      cat.questions.forEach(q => {
+        const s = pq[q.id];
+        const avg = s ? s.avg : null;
+        const cnt = s ? s.count : 0;
+        const col = scoreColor(avg);
+        const pct = (avg === null || avg === undefined) ? 0 : (avg * 10);
+        qHtml += `
+          <div class="q-row">
+            <div class="q-top">
+              <div class="q-label">${esc(q.text)}</div>
+              <div class="q-num" style="color:${col}">${fmt(avg)} <span class="q-count">(${cnt})</span></div>
+            </div>
+            <div class="meter"><div class="meter-fill" style="width:${pct}%; background:${col}"></div></div>
+            ${s ? distBars(s.dist) : ""}
+          </div>`;
+      });
+
+      const openId = "open-" + cat.key;
+      html += `
+        <div class="block">
+          <div class="block-head">
+            <h3>${esc(cat.title)}</h3>
+            <div class="badge" style="background:${scoreColor(catAvg)}">${fmt(catAvg)}</div>
+          </div>
+          ${qHtml}
+          <button class="toggle" data-target="${openId}" ${openArr.length ? "" : "disabled"}>
+            ${openArr.length ? "Ver respostas abertas (" + openArr.length + ")" : "Sem respostas abertas"}
+            <span style="font-size:10px; color:var(--text-mute); display:block; font-weight:400; margin-top:2px;">${esc(CATEGORY_OPEN[cat.key] || "")}</span>
+          </button>
+          <div class="open-list" id="${openId}">
+            ${openArr.map(t => `<div class="quote">${esc(t)}</div>`).join("")}
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+
+    // ---- Perguntas abertas gerais ----
+    const general = data.general || {};
+    const hasGeneral = GENERAL_QUESTIONS.some(g => (general[g.id] || []).length) || (data.comments || []).length;
+    html += `<h2 class="section-title">Perguntas abertas</h2>
+             <p class="section-sub">Respostas anônimas na íntegra. Ajudam a entender o "porquê" por trás das notas.</p>`;
+
+    if (!hasGeneral){
+      html += `<div class="gblock"><div class="cnt">Ainda não há respostas abertas.</div></div>`;
+    } else {
+      GENERAL_QUESTIONS.forEach(g => {
+        const arr = general[g.id] || [];
+        html += `
+          <div class="gblock">
+            <h4>${esc(g.text)}</h4>
+            <div class="cnt">${arr.length} resposta(s)</div>
+            ${arr.map(t => `<div class="quote">${esc(t)}</div>`).join("") || `<div class="quote" style="color:var(--text-mute); border-color:var(--line)">Sem respostas.</div>`}
+          </div>`;
+      });
+
+      const comments = data.comments || [];
+      if (comments.length){
+        html += `
+          <div class="gblock">
+            <h4>Algo mais que queira compartilhar? (comentário final)</h4>
+            <div class="cnt">${comments.length} comentário(s)</div>
+            ${comments.map(t => `<div class="quote">${esc(t)}</div>`).join("")}
+          </div>`;
+      }
+    }
+
+    html += `<div class="footnote">
+      Pesquisa 100% anônima — nenhum nome, e-mail ou IP é coletado.<br>
+      Atualiza automaticamente a cada ${Math.round(REFRESH_MS/1000)} segundos.
+    </div>`;
+
+    content.innerHTML = html;
+
+    // Liga os botões de "ver respostas abertas".
+    content.querySelectorAll(".toggle[data-target]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const el = document.getElementById(btn.getAttribute("data-target"));
+        if (el) el.classList.toggle("show");
+      });
+    });
+  }
+
+  function stamp(){
+    const d = new Date();
+    liveText.textContent = "Atualizado às " + d.toLocaleTimeString("pt-BR");
+  }
+
+  async function load(force){
+    if (gated && !force) return;
+    try {
+      const url = API_BASE + "/api/results" + (token ? "?token=" + encodeURIComponent(token) : "");
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.status === 401){ renderTokenGate(token ? "Token inválido. Tente novamente." : ""); return; }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      gated = false;
+      render(data);
+      stamp();
+      startRefresh();
+    } catch (e){
+      liveText.textContent = "Falha ao carregar — tentando de novo…";
+    }
+  }
+
+  function startRefresh(){
+    if (timer) return;
+    timer = setInterval(() => load(false), REFRESH_MS);
+  }
+  function stopRefresh(){
+    if (timer){ clearInterval(timer); timer = null; }
+  }
+
+  load(true);
+})();
+</script>
+
+</body>
+</html>
