@@ -69,7 +69,7 @@ app = FastAPI(title="Pesquisa de Clima")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -233,6 +233,57 @@ def results(request: Request):
         "timeline": timeline_out,
         "lastUpdated": datetime.now(timezone.utc).isoformat(),
     })
+
+
+@app.get("/api/responses")
+def list_responses(request: Request):
+    """Lista cada resposta individualmente (para o gestor apagar as que quiser)."""
+    check_token(request)
+    out = []
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sa.select(responses.c.id, responses.c.created_at, responses.c.payload)
+            .order_by(responses.c.created_at.desc())
+        ).all()
+
+    for rid, created_at, payload_text in rows:
+        try:
+            p = json.loads(payload_text)
+        except Exception:
+            p = {}
+        vals = [v for v in (p.get("answers") or {}).values() if isinstance(v, int)]
+        avg = round(sum(vals) / len(vals), 1) if vals else None
+
+        # Prévia curta para o gestor identificar a resposta (ex.: reconhecer um teste).
+        preview = (p.get("comment") or "").strip()
+        if not preview:
+            for t in (p.get("openAnswers") or {}).values():
+                if t and t.strip():
+                    preview = t.strip()
+                    break
+        if not preview:
+            for t in (p.get("generalAnswers") or {}).values():
+                if t and t.strip():
+                    preview = t.strip()
+                    break
+
+        out.append({
+            "id": rid,
+            "created_at": created_at.isoformat() if created_at else None,
+            "answersCount": len(vals),
+            "avg": avg,
+            "preview": preview[:80],
+        })
+    return JSONResponse(out)
+
+
+@app.delete("/api/responses/{resp_id}")
+def delete_response(resp_id: int, request: Request):
+    """Apaga uma resposta específica pelo id (protegido pelo token)."""
+    check_token(request)
+    with engine.begin() as conn:
+        result = conn.execute(responses.delete().where(responses.c.id == resp_id))
+    return {"ok": True, "deleted": result.rowcount}
 
 
 if __name__ == "__main__":

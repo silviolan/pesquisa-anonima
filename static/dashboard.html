@@ -87,6 +87,16 @@
 
   .footnote{font-size:12px; color:var(--text-mute); margin-top:34px; text-align:center; line-height:1.6;}
 
+  /* Administração — apagar respostas específicas */
+  .admin-note{font-size:12.5px; color:var(--amber); margin:0 0 14px; line-height:1.5;}
+  .resp-item{display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px;}
+  .resp-info{min-width:0;}
+  .resp-date{font-size:13px; font-weight:600; color:var(--navy);}
+  .resp-prev{font-size:12px; color:var(--text-mute); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:560px;}
+  .btn-del{flex-shrink:0; background:#fff; color:var(--red); border:1.5px solid var(--red); border-radius:8px; padding:7px 15px; font-size:12.5px; font-weight:600; cursor:pointer; transition:all .15s;}
+  .btn-del:hover{background:var(--red); color:#fff;}
+  .btn-del:disabled{opacity:.5; cursor:default;}
+
   /* Token gate */
   .gate{max-width:420px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px 28px; box-shadow:0 12px 28px rgba(15,30,60,.10); text-align:center;}
   .gate h2{font-family:Georgia,serif; color:var(--navy); margin:0 0 8px;}
@@ -181,6 +191,7 @@
   let token = new URLSearchParams(location.search).get("token") || "";
   let timer = null;
   let gated = false;
+  let adminOpen = false; // mantém a área de administração aberta entre atualizações
 
   // Escapa texto do usuário para evitar injeção de HTML/script no painel.
   function esc(s){
@@ -252,7 +263,8 @@
       </div>`;
   }
 
-  function render(data){
+  function render(data, list){
+    list = list || [];
     const pq = data.perQuestion || {};
 
     if (!data.count){
@@ -351,6 +363,30 @@
       }
     }
 
+    // ---- Administração: apagar respostas específicas ----
+    html += `<h2 class="section-title">Administração</h2>
+             <p class="admin-note">⚠️ Apague respostas específicas (ex.: testes). A exclusão é permanente e não pode ser desfeita.</p>`;
+    if (!list.length){
+      html += `<div class="gblock"><div class="cnt">Nenhuma resposta para gerenciar.</div></div>`;
+    } else {
+      html += `<button class="toggle" id="admin-toggle">${adminOpen ? "Ocultar respostas" : "Gerenciar / apagar respostas"} (${list.length})</button>
+               <div class="open-list${adminOpen ? " show" : ""}" id="admin-list">`;
+      list.forEach(r => {
+        let dt = r.created_at || "";
+        try { if (r.created_at) dt = new Date(r.created_at).toLocaleString("pt-BR"); } catch (e){}
+        const prev = r.preview ? " · “" + esc(r.preview) + "”" : "";
+        html += `
+          <div class="resp-item">
+            <div class="resp-info">
+              <div class="resp-date">${esc(dt)}</div>
+              <div class="resp-prev">Média ${r.avg == null ? "—" : r.avg} · ${r.answersCount} nota(s)${prev}</div>
+            </div>
+            <button class="btn-del" data-del="${r.id}">Apagar</button>
+          </div>`;
+      });
+      html += `</div>`;
+    }
+
     html += `<div class="footnote">
       Pesquisa 100% anônima — nenhum nome, e-mail ou IP é coletado.<br>
       Atualiza automaticamente a cada ${Math.round(REFRESH_MS/1000)} segundos.
@@ -365,6 +401,38 @@
         if (el) el.classList.toggle("show");
       });
     });
+
+    // Área de administração: expandir/recolher a lista.
+    const adminToggle = document.getElementById("admin-toggle");
+    if (adminToggle){
+      adminToggle.addEventListener("click", () => {
+        adminOpen = !adminOpen;
+        const el = document.getElementById("admin-list");
+        if (el) el.classList.toggle("show", adminOpen);
+        adminToggle.textContent = (adminOpen ? "Ocultar respostas" : "Gerenciar / apagar respostas") + " (" + list.length + ")";
+      });
+    }
+
+    // Botões de apagar resposta específica.
+    content.querySelectorAll(".btn-del[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => deleteResponse(btn.getAttribute("data-del"), btn));
+    });
+  }
+
+  async function deleteResponse(id, btn){
+    if (!confirm("Apagar esta resposta? Esta ação é permanente e não pode ser desfeita.")) return;
+    if (btn){ btn.disabled = true; btn.textContent = "Apagando…"; }
+    try {
+      const q = token ? "?token=" + encodeURIComponent(token) : "";
+      const res = await fetch(API_BASE + "/api/responses/" + encodeURIComponent(id) + q, { method: "DELETE" });
+      if (res.status === 401){ renderTokenGate("Sessão expirada. Informe o token novamente."); return; }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      adminOpen = true;   // mantém a lista aberta após apagar
+      await load(true);   // recarrega contagem, gráficos e lista
+    } catch (e){
+      if (btn){ btn.disabled = false; btn.textContent = "Apagar"; }
+      alert("Não foi possível apagar agora. Tente novamente.");
+    }
   }
 
   function stamp(){
@@ -375,13 +443,19 @@
   async function load(force){
     if (gated && !force) return;
     try {
-      const url = API_BASE + "/api/results" + (token ? "?token=" + encodeURIComponent(token) : "");
-      const res = await fetch(url, { cache: "no-store" });
+      const q = token ? "?token=" + encodeURIComponent(token) : "";
+      const res = await fetch(API_BASE + "/api/results" + q, { cache: "no-store" });
       if (res.status === 401){ renderTokenGate(token ? "Token inválido. Tente novamente." : ""); return; }
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
+      // Lista individual de respostas (para a área de administração).
+      let list = [];
+      try {
+        const r2 = await fetch(API_BASE + "/api/responses" + q, { cache: "no-store" });
+        if (r2.ok) list = await r2.json();
+      } catch (e2){ /* mantém a lista vazia se falhar */ }
       gated = false;
-      render(data);
+      render(data, list);
       stamp();
       startRefresh();
     } catch (e){
